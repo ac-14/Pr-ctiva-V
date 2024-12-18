@@ -1,5 +1,5 @@
 import { Collection, ObjectId } from "mongodb";
-import { CommentModel, PostModel, User, UserModel, UserInput, PostInput, PostInputUpdate, CommentInput, CommentInputUpdate} from "./types.ts";
+import { CommentModel, PostModel, UserModel, UserInput, PostInput, PostInputUpdate, CommentInput, CommentInputUpdate } from "./types.ts";
 import { encryptPassword } from "./utils.ts";
 
 export const resolvers = {
@@ -312,6 +312,63 @@ export const resolvers = {
                 throw new Error("Not able to create comment")
             }
         },
+
+        addLikeToPost: async (
+            _: unknown,
+            args: { postId: string, userId: string },
+            ctx: { postsCollection: Collection<PostModel>, usersCollection: Collection<UserModel> }
+        ): Promise<PostModel> => {
+            
+            const postId = new ObjectId(args.postId)
+            const userId = new ObjectId(args.userId)
+
+            const postDB = await ctx.postsCollection.findOneAndUpdate(
+                { _id: postId },
+                { $push: { likes: userId } },
+                { returnDocument: "after" }
+            )
+
+            if(!postDB){
+                throw new Error("Post not found. . .")
+            }
+
+            await ctx.usersCollection.updateOne(
+                { _id: userId },
+                { $push: { likedPosts: postId } }
+            )
+
+            return postDB
+
+        },
+
+        removeLikeFromPost: async (
+            _: unknown,
+            args: { postId: string, userId: string },
+            ctx: { postsCollection: Collection<PostModel>, usersCollection: Collection<UserModel> }
+        ): Promise<PostModel> => {
+            
+            const postId = new ObjectId(args.postId)
+            const userId = new ObjectId(args.userId)
+
+            const postDB = await ctx.postsCollection.findOneAndUpdate(
+                { _id: postId },
+                { $pull: { likes: userId } },
+                { returnDocument: "after" }
+            )
+
+            if(!postDB){
+                throw new Error("Post not found. . .")
+            }
+
+            await ctx.usersCollection.updateOne(
+                { _id: userId },
+                { $pull: { likedPosts: postId } }
+            )
+
+            return postDB
+
+        },
+
  
-}   
+    }   
 }

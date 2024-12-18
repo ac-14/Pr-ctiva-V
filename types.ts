@@ -69,5 +69,5 @@ export type CommentInputUpdate = {
 export type CommentModel =  OptionalId<{
     text: string,
     author: ObjectId,
-    post: Post
+    post: ObjectId
 }>
