@@ -134,7 +134,13 @@ export const resolvers = {
             {input}: {input: UserInput},
             ctx: {usersCollection : Collection<UserModel>}
         ) => {
+            const existingUser = await ctx.usersCollection.findOne({ email: input.email });
+            if (existingUser) {
+                throw new Error("Email is already in use");
+            }
+
             const encryptedPassword = await encryptPassword(input.password);
+            
             const {insertedId} = await ctx.usersCollection.insertOne({
                 name: input.name,
                 password: encryptedPassword,
@@ -153,14 +159,21 @@ export const resolvers = {
             {id, input}: {id: string ,input: UserInput},
             ctx: {usersCollection : Collection<UserModel>}
         ):Promise<UserModel> => {
+            const existingUser = await ctx.usersCollection.findOne({ email: input.email });
+            if (existingUser && existingUser._id.toString() !== id) {
+                throw new Error("Email is already in use");
+            }
+
             const encryptedPassword = await encryptPassword(input.password); 
             await ctx.usersCollection.updateOne({_id: new ObjectId(id)},{
-                name: input.name,
-                password: encryptedPassword,
-                email: input.email,
-                posts: [],
-                comments: [],
-                likedPosts: []
+                $set: {
+                    name: input.name,
+                    password: encryptedPassword,
+                    email: input.email,
+                    posts: [],
+                    comments: [],
+                    likedPosts: []
+                }
             })
             
             const user = await ctx.usersCollection.findOne({_id: new ObjectId(id)});
@@ -205,8 +218,11 @@ export const resolvers = {
         createPost: async (
             _:unknown, 
             {input}: {input: PostInput},
-            ctx : { postsCollection: Collection<PostModel> }
+            ctx : {usersCollection: Collection<UserModel>,  postsCollection: Collection<PostModel> }
         ): Promise<PostModel> => {
+            const author = await ctx.usersCollection.findOne({_id: new ObjectId(input.author)});
+            if(author && input.content){
+
             const {insertedId} = await ctx.postsCollection.insertOne({
                 content: input.content,
                 author: new ObjectId(input.author),
@@ -219,6 +235,10 @@ export const resolvers = {
             return newPost
             } else {
                 throw new Error("Not able to create post")
+            }
+
+            } else {
+                throw new Error("User doesnt exist");
             }
         },
 
