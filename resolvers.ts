@@ -238,7 +238,7 @@ export const resolvers = {
             }
 
             } else {
-                throw new Error("User doesnt exist");
+                throw new Error("Author does not exist");
             }
         },
 
@@ -281,19 +281,24 @@ export const resolvers = {
         createComment: async (
             _:unknown, 
             {input}: {input: CommentInput},
-            ctx : { commentCollection: Collection<CommentModel> }
+            ctx : { usersCollection: Collection<UserModel>, commentCollection: Collection<CommentModel> }
         ): Promise<CommentModel> => {
+            const author = await ctx.usersCollection.findOne({_id: new ObjectId(input.author)});
+            if (!author) {
+            throw new Error("Author does not exist");
+            }
+
             const {insertedId} = await ctx.commentCollection.insertOne({
-                text: input.text,
-                author: new ObjectId(input.author),
-                post: new ObjectId(input.post)
+            text: input.text,
+            author: new ObjectId(input.author),
+            post: new ObjectId(input.post)
             })
 
             const newComment = await ctx.commentCollection.findOne({_id: insertedId});
             if(newComment){
             return newComment
             } else {
-                throw new Error("Not able to create comment")
+            throw new Error("Not able to create comment")
             }
         },
 
@@ -329,7 +334,7 @@ export const resolvers = {
             if(newComment){
             return newComment
             } else {
-                throw new Error("Not able to create comment")
+                throw new Error("Not able to update comment")
             }
         },
 
@@ -342,6 +347,11 @@ export const resolvers = {
             const postId = new ObjectId(args.postId)
             const userId = new ObjectId(args.userId)
 
+            const user = await ctx.usersCollection.findOne({ _id: userId });
+            if (!user) {
+                throw new Error("User not found");
+            }
+
             const postDB = await ctx.postsCollection.findOneAndUpdate(
                 { _id: postId },
                 { $push: { likes: userId } },
@@ -349,7 +359,7 @@ export const resolvers = {
             )
 
             if(!postDB){
-                throw new Error("Post not found. . .")
+                throw new Error("Post not found");
             }
 
             await ctx.usersCollection.updateOne(
@@ -357,7 +367,7 @@ export const resolvers = {
                 { $push: { likedPosts: postId } }
             )
 
-            return postDB
+            return postDB;
 
         },
 
@@ -369,6 +379,11 @@ export const resolvers = {
             
             const postId = new ObjectId(args.postId)
             const userId = new ObjectId(args.userId)
+
+            const user = await ctx.usersCollection.findOne({ _id: userId });
+            if (!user) {
+                throw new Error("User not found");
+            }
 
             const postDB = await ctx.postsCollection.findOneAndUpdate(
                 { _id: postId },
